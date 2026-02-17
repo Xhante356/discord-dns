@@ -1,7 +1,7 @@
 <Window x:Class="DiscordDnsApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Discord DNS Bypass"
+        Title="Discord Bypass"
         Height="620" Width="500"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
@@ -65,10 +65,10 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Discord DNS Bypass"
+            <TextBlock Text="Discord Bypass"
                        FontFamily="Segoe UI" FontSize="22" FontWeight="Bold"
                        Foreground="{StaticResource TextPrimary}"/>
-            <TextBlock Text="NRPT tabanli DNS yonlendirme araci"
+            <TextBlock Text="GoodbyeDPI + NRPT tabanli Discord engel asma araci"
                        FontFamily="Segoe UI" FontSize="13"
                        Foreground="{StaticResource TextSecondary}"
                        Margin="0,4,0,0"/>

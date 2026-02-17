@@ -1,17 +1,17 @@
-# Discord DNS Bypass
+# Discord Bypass
 
-Windows 11 NRPT (Name Resolution Policy Table) tabanli Discord DNS bypass araci.
-
-Sadece Discord alan adlari icin DNS sorgularini Cloudflare'e (1.1.1.1 / 1.0.0.1) yonlendirir. Diger tum trafik normal DNS uzerinden devam eder.
+Windows 11 icin Discord engel asma araci. GoodbyeDPI (DPI bypass) + NRPT (DNS bypass).
 
 ## Nasil Calisir?
 
-Windows 11'in yerlesik NRPT ozelligini kullanarak Discord alan adlari icin ozel DNS kurallari olusturur. Cloudflare, Windows 11'in bilinen DoH (DNS over HTTPS) sunucu listesinde oldugu icin sorgular otomatik olarak sifrelenir.
+Iki katmanli engel asma:
 
-- Ek yazilim gerektirmez (Windows 11 yerlesik)
+1. **GoodbyeDPI**: ISP'nin DPI/SNI engellemesini TLS paket fragmentasyonu ile astirir
+2. **NRPT**: Discord alan adlari icin DNS sorgularini Cloudflare'e yonlendirir (DoH)
+
 - Sadece Discord etkilenir, diger trafik degismez
-- Sistem genelinde calisir (tarayici + Discord uygulamasi + her sey)
-- Yeniden baslatma sonrasi da gecerli kalir
+- Sistem genelinde calisir (tarayici + Discord uygulamasi)
+- Pencereyi kapatinca arka planda calismaya devam eder (system tray)
 
 ## Kurulum
 
@@ -29,8 +29,9 @@ Masaustundeki **Discord DNS.bat** dosyasini cift tiklayarak GUI uygulamasini aci
 
 GUI ozellikleri:
 - Discord temali karanlik arayuz (C# WPF)
-- Tek tikla etkinlestir/devre disi birak
-- Canli NRPT kural listesi
+- Tek tikla etkinlestir/devre disi birak (GoodbyeDPI + NRPT birlikte)
+- Canli NRPT kural listesi ve GoodbyeDPI durumu
+- System tray: pencereyi kapatinca arka planda calismaya devam eder
 - Islem kaydi
 
 ### Masaustu Kisayollari (CLI)

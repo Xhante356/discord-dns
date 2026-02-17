@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows;
@@ -34,6 +35,7 @@ namespace DiscordDnsApp
         private readonly SolidColorBrush _blurple = new(System.Windows.Media.Color.FromRgb(0x58, 0x65, 0xF2));
 
         private bool _isActive;
+        private Process? _gdpiProcess;
         private WinForms.NotifyIcon? _trayIcon;
 
         public MainWindow()
@@ -44,13 +46,127 @@ namespace DiscordDnsApp
             RefreshStatus();
         }
 
+        // --- GoodbyeDPI Path ---
+
+        private string GetGoodbyeDpiDir()
+        {
+            // Look relative to the project root (two levels up from exe, or next to exe)
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            // Try: <project>/goodbyedpi/x86_64/
+            var projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."));
+            var gdpiDir = Path.Combine(projectRoot, "goodbyedpi", "x86_64");
+            if (File.Exists(Path.Combine(gdpiDir, "goodbyedpi.exe")))
+                return gdpiDir;
+
+            // Try: <baseDir>/../../../goodbyedpi/x86_64/ (publish folder)
+            for (int i = 1; i <= 6; i++)
+            {
+                var up = baseDir;
+                for (int j = 0; j < i; j++)
+                    up = Path.GetFullPath(Path.Combine(up, ".."));
+                gdpiDir = Path.Combine(up, "goodbyedpi", "x86_64");
+                if (File.Exists(Path.Combine(gdpiDir, "goodbyedpi.exe")))
+                    return gdpiDir;
+            }
+
+            // Fallback: hardcoded project path
+            gdpiDir = @"C:\Users\UeanoS\discord-dns\goodbyedpi\x86_64";
+            if (File.Exists(Path.Combine(gdpiDir, "goodbyedpi.exe")))
+                return gdpiDir;
+
+            return string.Empty;
+        }
+
+        // --- GoodbyeDPI Process Management ---
+
+        private bool IsGoodbyeDpiRunning()
+        {
+            // Check our managed process
+            if (_gdpiProcess != null && !_gdpiProcess.HasExited)
+                return true;
+
+            // Check if any goodbyedpi.exe is running system-wide
+            return Process.GetProcessesByName("goodbyedpi").Length > 0;
+        }
+
+        private bool StartGoodbyeDpi()
+        {
+            if (IsGoodbyeDpiRunning())
+            {
+                Dispatcher.Invoke(() => Log("GoodbyeDPI zaten calisiyor."));
+                return true;
+            }
+
+            var gdpiDir = GetGoodbyeDpiDir();
+            if (string.IsNullOrEmpty(gdpiDir))
+            {
+                Dispatcher.Invoke(() => Log("HATA: GoodbyeDPI bulunamadi!"));
+                return false;
+            }
+
+            var exePath = Path.Combine(gdpiDir, "goodbyedpi.exe");
+            Dispatcher.Invoke(() => Log($"GoodbyeDPI baslatiliyor..."));
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = "-5 --set-ttl 5 --dns-addr 77.88.8.8 --dns-port 1253 --dnsv6-addr 2a02:6b8::feed:0ff --dnsv6-port 1253",
+                    WorkingDirectory = gdpiDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                _gdpiProcess = Process.Start(psi);
+
+                if (_gdpiProcess != null && !_gdpiProcess.HasExited)
+                {
+                    Dispatcher.Invoke(() => Log($"GoodbyeDPI baslatildi (PID: {_gdpiProcess.Id})."));
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => Log($"HATA: GoodbyeDPI baslatilamadi: {ex.Message}"));
+            }
+            return false;
+        }
+
+        private void StopGoodbyeDpi()
+        {
+            // Kill our managed process
+            if (_gdpiProcess != null && !_gdpiProcess.HasExited)
+            {
+                try
+                {
+                    _gdpiProcess.Kill();
+                    _gdpiProcess.WaitForExit(5000);
+                    Dispatcher.Invoke(() => Log("GoodbyeDPI durduruldu."));
+                }
+                catch { }
+                _gdpiProcess = null;
+            }
+
+            // Also kill any other goodbyedpi.exe instances
+            foreach (var p in Process.GetProcessesByName("goodbyedpi"))
+            {
+                try
+                {
+                    p.Kill();
+                    p.WaitForExit(3000);
+                }
+                catch { }
+            }
+        }
+
         // --- System Tray ---
 
         private void SetupTrayIcon()
         {
             _trayIcon = new WinForms.NotifyIcon();
 
-            // Try to use Discord icon, fallback to system icon
             var icoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "discord.ico");
             if (!File.Exists(icoPath))
             {
@@ -61,12 +177,8 @@ namespace DiscordDnsApp
                     icoPath = discordIco;
             }
 
-            if (File.Exists(icoPath))
-                _trayIcon.Icon = new Icon(icoPath);
-            else
-                _trayIcon.Icon = SystemIcons.Application;
-
-            _trayIcon.Text = "Discord DNS Bypass";
+            _trayIcon.Icon = File.Exists(icoPath) ? new Icon(icoPath) : SystemIcons.Application;
+            _trayIcon.Text = "Discord Bypass";
             _trayIcon.Visible = true;
 
             var menu = new WinForms.ContextMenuStrip();
@@ -74,7 +186,6 @@ namespace DiscordDnsApp
             menu.Items.Add(new WinForms.ToolStripSeparator());
             menu.Items.Add("Cikis", null, (_, _) => ExitApp());
             _trayIcon.ContextMenuStrip = menu;
-
             _trayIcon.DoubleClick += (_, _) => ShowFromTray();
         }
 
@@ -87,6 +198,15 @@ namespace DiscordDnsApp
 
         private void ExitApp()
         {
+            // Stop GoodbyeDPI on exit
+            StopGoodbyeDpi();
+
+            // Remove NRPT rules on exit
+            RunPowerShell(
+                $"Get-DnsClientNrptRule | Where-Object {{ $_.Comment -eq '{CommentTag}' }} | " +
+                "ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force }");
+            RunPowerShell("Clear-DnsClientCache");
+
             if (_trayIcon != null)
             {
                 _trayIcon.Visible = false;
@@ -98,13 +218,12 @@ namespace DiscordDnsApp
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            // Minimize to tray instead of closing
             e.Cancel = true;
             Hide();
             _trayIcon?.ShowBalloonTip(
                 2000,
-                "Discord DNS Bypass",
-                "Uygulama arka planda calismaya devam ediyor.",
+                "Discord Bypass",
+                "Arka planda calismaya devam ediyor. Kapatmak icin sag tiklayin.",
                 WinForms.ToolTipIcon.Info);
         }
 
@@ -129,14 +248,14 @@ namespace DiscordDnsApp
             LogScroller.ScrollToEnd();
         }
 
-        private void SetStatus(bool active, int ruleCount)
+        private void SetStatus(bool active, int ruleCount, bool gdpiRunning)
         {
-            _isActive = active;
-            if (active)
+            _isActive = active && gdpiRunning;
+            if (_isActive)
             {
                 StatusDot.Fill = _green;
                 StatusText.Text = "Durum: ETKIN";
-                StatusDetail.Text = $"{ruleCount} NRPT kurali aktif";
+                StatusDetail.Text = $"GoodbyeDPI aktif, {ruleCount} NRPT kurali";
                 BtnToggle.Content = "Devre Disi Birak";
                 BtnToggle.Background = _red;
             }
@@ -144,14 +263,13 @@ namespace DiscordDnsApp
             {
                 StatusDot.Fill = _red;
                 StatusText.Text = "Durum: DEVRE DISI";
-                StatusDetail.Text = "Aktif NRPT kurali yok";
+                StatusDetail.Text = gdpiRunning ? "GoodbyeDPI aktif ama NRPT kurali yok" : "Bypass kapali";
                 BtnToggle.Content = "Etkinlestir";
                 BtnToggle.Background = _blurple;
             }
 
-            // Update tray tooltip
             if (_trayIcon != null)
-                _trayIcon.Text = active ? "Discord DNS Bypass - ETKIN" : "Discord DNS Bypass - DEVRE DISI";
+                _trayIcon.Text = _isActive ? "Discord Bypass - ETKIN" : "Discord Bypass - DEVRE DISI";
         }
 
         private void SetBusy(bool busy)
@@ -181,11 +299,10 @@ namespace DiscordDnsApp
             }
         }
 
-        // --- PowerShell Execution (EncodedCommand to avoid escaping issues) ---
+        // --- PowerShell Execution ---
 
         private static string RunPowerShell(string script)
         {
-            // Encode as Base64 UTF-16LE for -EncodedCommand
             var bytes = Encoding.Unicode.GetBytes(script);
             var encoded = Convert.ToBase64String(bytes);
 
@@ -204,7 +321,6 @@ namespace DiscordDnsApp
             if (process == null) return string.Empty;
 
             var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
             process.WaitForExit(30000);
             return output.Trim();
         }
@@ -244,13 +360,19 @@ namespace DiscordDnsApp
             var thread = new Thread(() =>
             {
                 var rules = GetCurrentRules();
+                var gdpiRunning = IsGoodbyeDpiRunning();
                 Dispatcher.Invoke(() =>
                 {
-                    SetStatus(rules.Count > 0, rules.Count);
+                    SetStatus(rules.Count > 0, rules.Count, gdpiRunning);
                     UpdateRulesList(rules);
-                    Log(rules.Count > 0
-                        ? $"Durum kontrol: {rules.Count} kural aktif."
-                        : "Durum kontrol: Bypass devre disi.");
+                    if (gdpiRunning && rules.Count > 0)
+                        Log($"Durum kontrol: Bypass etkin ({rules.Count} NRPT + GoodbyeDPI).");
+                    else if (gdpiRunning)
+                        Log("Durum kontrol: GoodbyeDPI calisiyor ama NRPT kurali yok.");
+                    else if (rules.Count > 0)
+                        Log($"Durum kontrol: {rules.Count} NRPT kurali var ama GoodbyeDPI kapali.");
+                    else
+                        Log("Durum kontrol: Bypass devre disi.");
                     SetBusy(false);
                 });
             })
@@ -265,17 +387,20 @@ namespace DiscordDnsApp
 
             var thread = new Thread(() =>
             {
-                // Remove existing rules first
+                // 1. Start GoodbyeDPI
+                var gdpiOk = StartGoodbyeDpi();
+
+                // 2. Remove existing NRPT rules
                 var existing = GetCurrentRules();
                 if (existing.Count > 0)
                 {
-                    Dispatcher.Invoke(() => Log("Mevcut kurallar kaldiriliyor..."));
+                    Dispatcher.Invoke(() => Log("Mevcut NRPT kurallar kaldiriliyor..."));
                     RunPowerShell(
                         $"Get-DnsClientNrptRule | Where-Object {{ $_.Comment -eq '{CommentTag}' }} | " +
                         "ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force }");
                 }
 
-                // Ensure DoH servers are registered
+                // 3. Ensure DoH servers
                 Dispatcher.Invoke(() => Log("DoH sunuculari kontrol ediliyor..."));
                 RunPowerShell(
                     $"$s = Get-DnsClientDohServerAddress -ServerAddress '{DnsPrimary}' -ErrorAction SilentlyContinue; " +
@@ -286,8 +411,7 @@ namespace DiscordDnsApp
                     $"if (-not $s) {{ Add-DnsClientDohServerAddress -ServerAddress '{DnsSecondary}' " +
                     $"-DohTemplate 'https://cloudflare-dns.com/dns-query' -AllowFallbackToUdp $false -AutoUpgrade $true }}");
 
-                // Add NRPT rules
-                int created = 0;
+                // 4. Add NRPT rules
                 foreach (var domain in DiscordDomains)
                 {
                     var d = domain;
@@ -295,22 +419,25 @@ namespace DiscordDnsApp
                         $"Add-DnsClientNrptRule -Namespace '{d}' " +
                         $"-NameServers @('{DnsPrimary}','{DnsSecondary}') " +
                         $"-Comment '{CommentTag}'");
-                    created++;
-                    Dispatcher.Invoke(() => Log($"  Kural eklendi: {d}"));
+                    Dispatcher.Invoke(() => Log($"  NRPT kurali eklendi: {d}"));
                 }
 
-                // Clear DNS cache
+                // 5. Clear DNS cache
                 RunPowerShell("Clear-DnsClientCache");
 
-                // Refresh UI
+                // 6. Refresh UI
                 var rules = GetCurrentRules();
+                var gdpiRunning = IsGoodbyeDpiRunning();
                 Dispatcher.Invoke(() =>
                 {
                     Log("DNS onbellegi temizlendi.");
-                    Log(rules.Count > 0
-                        ? $"Bypass ETKIN - {rules.Count} kural aktif."
-                        : "Bypass etkinlestirilemedi! PowerShell'i admin olarak calistirdiginizdan emin olun.");
-                    SetStatus(rules.Count > 0, rules.Count);
+                    if (gdpiRunning && rules.Count > 0)
+                        Log($"Bypass ETKIN - GoodbyeDPI + {rules.Count} NRPT kurali aktif.");
+                    else if (!gdpiRunning)
+                        Log("UYARI: GoodbyeDPI baslatilamadi! DPI bypass calismayabilir.");
+                    else
+                        Log("UYARI: NRPT kurallari eklenemedi!");
+                    SetStatus(rules.Count > 0, rules.Count, gdpiRunning);
                     UpdateRulesList(rules);
                     SetBusy(false);
                 });
@@ -326,37 +453,32 @@ namespace DiscordDnsApp
 
             var thread = new Thread(() =>
             {
+                // 1. Stop GoodbyeDPI
+                StopGoodbyeDpi();
+
+                // 2. Remove NRPT rules
                 var existing = GetCurrentRules();
-                if (existing.Count == 0)
+                if (existing.Count > 0)
                 {
+                    RunPowerShell(
+                        $"Get-DnsClientNrptRule | Where-Object {{ $_.Comment -eq '{CommentTag}' }} | " +
+                        "ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force }");
                     Dispatcher.Invoke(() =>
                     {
-                        Log("Kaldirilacak kural yok. Bypass zaten devre disi.");
-                        SetStatus(false, 0);
-                        SetBusy(false);
+                        foreach (var rule in existing)
+                            Log($"  NRPT kurali kaldirildi: {rule.Domain}");
                     });
-                    return;
                 }
 
-                // Remove all rules in one command
-                RunPowerShell(
-                    $"Get-DnsClientNrptRule | Where-Object {{ $_.Comment -eq '{CommentTag}' }} | " +
-                    "ForEach-Object { Remove-DnsClientNrptRule -Name $_.Name -Force }");
-
-                Dispatcher.Invoke(() =>
-                {
-                    foreach (var rule in existing)
-                        Log($"  Kural kaldirildi: {rule.Domain}");
-                });
-
+                // 3. Clear DNS cache
                 RunPowerShell("Clear-DnsClientCache");
 
                 var rules = GetCurrentRules();
                 Dispatcher.Invoke(() =>
                 {
                     Log("DNS onbellegi temizlendi.");
-                    Log($"{existing.Count} kural kaldirildi. Bypass DEVRE DISI.");
-                    SetStatus(rules.Count > 0, rules.Count);
+                    Log("Bypass DEVRE DISI.");
+                    SetStatus(false, 0, false);
                     UpdateRulesList(rules);
                     SetBusy(false);
                 });
