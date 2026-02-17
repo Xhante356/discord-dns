@@ -9,24 +9,16 @@
         Icon="discord.ico">
 
     <Window.Resources>
-        <!-- Discord Dark Theme Colors -->
-        <SolidColorBrush x:Key="BgPrimary" Color="#36393F"/>
         <SolidColorBrush x:Key="BgSecondary" Color="#2F3136"/>
-        <SolidColorBrush x:Key="BgTertiary" Color="#202225"/>
         <SolidColorBrush x:Key="TextPrimary" Color="#DCDDDE"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#96989D"/>
-        <SolidColorBrush x:Key="Blurple" Color="#5865F2"/>
-        <SolidColorBrush x:Key="Green" Color="#57F287"/>
-        <SolidColorBrush x:Key="Red" Color="#ED4245"/>
-        <SolidColorBrush x:Key="Yellow" Color="#FEE75C"/>
 
-        <!-- Button Base Style -->
         <Style x:Key="BtnBase" TargetType="Button">
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Height" Value="40"/>
+            <Setter Property="Height" Value="44"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
@@ -34,7 +26,7 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="4"
+                                CornerRadius="6"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -54,7 +46,6 @@
             </Setter>
         </Style>
 
-        <!-- Card Style -->
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource BgSecondary}"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -88,7 +79,7 @@
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Ellipse x:Name="StatusDot" Width="12" Height="12"
-                             Fill="{StaticResource Red}" Margin="0,0,10,0"
+                             Fill="#ED4245" Margin="0,0,10,0"
                              VerticalAlignment="Center"/>
                     <TextBlock x:Name="StatusText" Text="Durum: KONTROL EDILIYOR..."
                                FontFamily="Segoe UI" FontSize="16" FontWeight="SemiBold"
@@ -102,26 +93,13 @@
             </StackPanel>
         </Border>
 
-        <!-- Buttons -->
-        <Grid Grid.Row="2" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Button x:Name="BtnEnable" Grid.Column="0"
-                    Content="Etkinlestir"
-                    Background="{StaticResource Blurple}"
-                    Style="{StaticResource BtnBase}"
-                    Click="BtnEnable_Click"/>
-
-            <Button x:Name="BtnDisable" Grid.Column="2"
-                    Content="Devre Disi Birak"
-                    Background="{StaticResource Red}"
-                    Style="{StaticResource BtnBase}"
-                    Click="BtnDisable_Click"/>
-        </Grid>
+        <!-- Single Toggle Button -->
+        <Button x:Name="BtnToggle" Grid.Row="2"
+                Content="Etkinlestir"
+                Background="#5865F2"
+                Style="{StaticResource BtnBase}"
+                Margin="0,0,0,12"
+                Click="BtnToggle_Click"/>
 
         <!-- NRPT Rules Card -->
         <Border Grid.Row="3" Style="{StaticResource Card}">
@@ -143,7 +121,7 @@
                                            FontFamily="Consolas" FontSize="12"
                                            Foreground="{StaticResource TextPrimary}"
                                            Grid.Column="0"/>
-                                <TextBlock Text=" -> "
+                                <TextBlock Text=" -&gt; "
                                            FontFamily="Consolas" FontSize="12"
                                            Foreground="{StaticResource TextSecondary}"
                                            Grid.Column="1"/>
