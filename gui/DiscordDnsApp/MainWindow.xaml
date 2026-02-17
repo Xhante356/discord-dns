@@ -1,0 +1,182 @@
+<Window x:Class="DiscordDnsApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Discord DNS Bypass"
+        Height="620" Width="500"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="#36393F"
+        Icon="discord.ico">
+
+    <Window.Resources>
+        <!-- Discord Dark Theme Colors -->
+        <SolidColorBrush x:Key="BgPrimary" Color="#36393F"/>
+        <SolidColorBrush x:Key="BgSecondary" Color="#2F3136"/>
+        <SolidColorBrush x:Key="BgTertiary" Color="#202225"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#DCDDDE"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#96989D"/>
+        <SolidColorBrush x:Key="Blurple" Color="#5865F2"/>
+        <SolidColorBrush x:Key="Green" Color="#57F287"/>
+        <SolidColorBrush x:Key="Red" Color="#ED4245"/>
+        <SolidColorBrush x:Key="Yellow" Color="#FEE75C"/>
+
+        <!-- Button Base Style -->
+        <Style x:Key="BtnBase" TargetType="Button">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Card Style -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BgSecondary}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Discord DNS Bypass"
+                       FontFamily="Segoe UI" FontSize="22" FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimary}"/>
+            <TextBlock Text="NRPT tabanli DNS yonlendirme araci"
+                       FontFamily="Segoe UI" FontSize="13"
+                       Foreground="{StaticResource TextSecondary}"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Status Card -->
+        <Border Grid.Row="1" Style="{StaticResource Card}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="StatusDot" Width="12" Height="12"
+                             Fill="{StaticResource Red}" Margin="0,0,10,0"
+                             VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatusText" Text="Durum: KONTROL EDILIYOR..."
+                               FontFamily="Segoe UI" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimary}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="StatusDetail" Text=""
+                           FontFamily="Segoe UI" FontSize="12"
+                           Foreground="{StaticResource TextSecondary}"
+                           Margin="22,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BtnEnable" Grid.Column="0"
+                    Content="Etkinlestir"
+                    Background="{StaticResource Blurple}"
+                    Style="{StaticResource BtnBase}"
+                    Click="BtnEnable_Click"/>
+
+            <Button x:Name="BtnDisable" Grid.Column="2"
+                    Content="Devre Disi Birak"
+                    Background="{StaticResource Red}"
+                    Style="{StaticResource BtnBase}"
+                    Click="BtnDisable_Click"/>
+        </Grid>
+
+        <!-- NRPT Rules Card -->
+        <Border Grid.Row="3" Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="NRPT Kurallari"
+                           FontFamily="Segoe UI" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimary}"
+                           Margin="0,0,0,8"/>
+                <ItemsControl x:Name="RulesList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Domain}"
+                                           FontFamily="Consolas" FontSize="12"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           Grid.Column="0"/>
+                                <TextBlock Text=" -> "
+                                           FontFamily="Consolas" FontSize="12"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Grid.Column="1"/>
+                                <TextBlock Text="{Binding Servers}"
+                                           FontFamily="Consolas" FontSize="12"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           Grid.Column="2"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock x:Name="NoRulesText" Text="Aktif kural yok"
+                           FontFamily="Consolas" FontSize="12"
+                           Foreground="{StaticResource TextSecondary}"
+                           Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Log Card -->
+        <Border Grid.Row="4" Style="{StaticResource Card}">
+            <DockPanel>
+                <TextBlock Text="Islem Kaydi"
+                           FontFamily="Segoe UI" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimary}"
+                           DockPanel.Dock="Top"
+                           Margin="0,0,0,8"/>
+                <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="LogText"
+                               FontFamily="Consolas" FontSize="11"
+                               Foreground="{StaticResource TextSecondary}"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

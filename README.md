@@ -23,7 +23,17 @@ git clone https://github.com/Xhante356/discord-dns.git
 
 ## Kullanim
 
-### Masaustu Kisayollari
+### GUI Uygulamas (Onerilen)
+
+Masaustundeki **Discord DNS.bat** dosyasini cift tiklayarak GUI uygulamasini acin. Uygulama otomatik olarak admin yetkisi isteyecektir.
+
+GUI ozellikleri:
+- Discord temali karanlik arayuz (C# WPF)
+- Tek tikla etkinlestir/devre disi birak
+- Canli NRPT kural listesi
+- Islem kaydi
+
+### Masaustu Kisayollari (CLI)
 
 - **Discord DNS Ac.bat** — Cift tiklayarak bypass'i etkinlestirir
 - **Discord DNS Kapat.bat** — Cift tiklayarak bypass'i devre disi birakir
